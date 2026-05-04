@@ -1,9 +1,6 @@
 const WebSocket = require('ws');
 const server = new WebSocket.Server({ port: process.env.PORT || 8080 });
 const rooms = new Map();
-const waitingPlayers = [];
-
-function generateId() { return Math.random().toString(36).substr(2, 6).toUpperCase(); }
 
 server.on('connection', (ws) => {
     let currentRoom = null;
@@ -14,27 +11,28 @@ server.on('connection', (ws) => {
         try { data = JSON.parse(msg); } catch(e) { return; }
 
         if (data.type === 'findRandom') {
-            if (waitingPlayers.length > 0) {
-                const opponent = waitingPlayers.shift();
-                const roomId = generateId();
-                rooms.set(roomId, { players: [opponent.ws, ws], symbols: ['X', 'O'] });
-                
-                opponent.ws.currentRoom = roomId;
-                opponent.ws.playerSymbol = 'X';
-                currentRoom = roomId;
+            // Ищем свободную комнату, где ждут соперника
+            let foundRoom = null;
+            for (const [roomId, room] of rooms) {
+                if (room.players.length === 1 && !room.permanent) {
+                    foundRoom = roomId;
+                    break;
+                }
+            }
+            
+            if (foundRoom) {
+                // Подключаемся к существующей комнате
+                const room = rooms.get(foundRoom);
+                room.players.push(ws);
+                room.symbols.push('O');
+                currentRoom = foundRoom;
                 playerSymbol = 'O';
-                
-                clearTimeout(opponent.timer);
-                opponent.ws.send(JSON.stringify({ type: 'randomRoom', roomId, symbol: 'X' }));
-                ws.send(JSON.stringify({ type: 'randomRoom', roomId, symbol: 'O' }));
+                ws.send(JSON.stringify({ type: 'randomRoom', roomId: foundRoom, symbol: 'O' }));
+                room.players[0].send(JSON.stringify({ type: 'opponentJoined' }));
             } else {
-                const timer = setTimeout(() => {
-                    const idx = waitingPlayers.findIndex(p => p.ws === ws);
-                    if (idx > -1) waitingPlayers.splice(idx, 1);
-                    ws.send(JSON.stringify({ type: 'error', message: 'Никто не подключился' }));
-                }, 120000);
-                waitingPlayers.push({ ws, timer });
-                const roomId = generateId();
+                // Создаём новую комнату и ждём
+                const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
+                rooms.set(roomId, { players: [ws], symbols: ['X'] });
                 currentRoom = roomId;
                 playerSymbol = 'X';
                 ws.send(JSON.stringify({ type: 'waiting', roomId, symbol: 'X' }));
@@ -61,8 +59,6 @@ server.on('connection', (ws) => {
                 ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
             }
         }
-
-        console.log('Получено сообщение:', data.type, 'currentRoom:', currentRoom);
 
         if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout') {
             const room = rooms.get(currentRoom);
@@ -98,8 +94,6 @@ server.on('connection', (ws) => {
                 if (!room.permanent) rooms.delete(currentRoom);
             }
         }
-        const idx = waitingPlayers.findIndex(p => p.ws === ws);
-        if (idx > -1) waitingPlayers.splice(idx, 1);
     });
 });
 
