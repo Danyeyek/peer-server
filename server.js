@@ -11,6 +11,17 @@ server.on('connection', (ws) => {
         let data;
         try { data = JSON.parse(msg); } catch(e) { return; }
 
+        if (data.type === 'checkRoom') {
+            const room = rooms.get(data.roomId);
+            if (room && room.players.length < 2) {
+                ws.send(JSON.stringify({ type: 'roomExists' }));
+            } else if (room && room.players.length >= 2) {
+                ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
+            } else {
+                ws.send(JSON.stringify({ type: 'roomNotFound' }));
+            }
+        }
+
         if (data.type === 'create') {
             const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
             rooms.set(roomId, { players: [ws], symbols: ['X'] });
@@ -31,7 +42,7 @@ server.on('connection', (ws) => {
             }
         }
 
-        if (data.type === 'joinPermanent' || data.type === 'join') {
+        if (data.type === 'join') {
             const room = rooms.get(data.roomId);
             if (room && room.players.length < 2) {
                 room.players.push(ws);
