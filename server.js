@@ -64,7 +64,9 @@ server.on('connection', (ws) => {
             const room = rooms.get(currentRoom);
             if (room) {
                 room.players.forEach((player) => {
-                    if (player !== ws) player.send(JSON.stringify(data));
+                    if (player !== ws && player.readyState === WebSocket.OPEN) {
+                        player.send(JSON.stringify(data));
+                    }
                 });
             }
         }
@@ -73,7 +75,9 @@ server.on('connection', (ws) => {
             const room = rooms.get(currentRoom);
             if (room) {
                 const otherPlayer = room.players.find(p => p !== ws);
-                if (otherPlayer) otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
+                if (otherPlayer && otherPlayer.readyState === WebSocket.OPEN) {
+                    otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
+                }
                 if (!room.permanent) rooms.delete(currentRoom);
             }
         }
@@ -84,7 +88,9 @@ server.on('connection', (ws) => {
             const room = rooms.get(currentRoom);
             if (room) {
                 const otherPlayer = room.players.find(p => p !== ws);
-                if (otherPlayer) otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
+                if (otherPlayer && otherPlayer.readyState === WebSocket.OPEN) {
+                    otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
+                }
                 if (!room.permanent) rooms.delete(currentRoom);
             }
         }
