@@ -8,7 +8,8 @@ server.on('connection', (ws) => {
     let playerSymbol = null;
 
     ws.on('message', (msg) => {
-        const data = JSON.parse(msg);
+        let data;
+        try { data = JSON.parse(msg); } catch(e) { return; }
 
         if (data.type === 'create') {
             const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -18,7 +19,19 @@ server.on('connection', (ws) => {
             ws.send(JSON.stringify({ type: 'roomCreated', roomId, symbol: 'X' }));
         }
 
-        if (data.type === 'join') {
+        if (data.type === 'createPermanent') {
+            const roomId = data.roomId || Math.random().toString(36).substr(2, 8);
+            if (!rooms.has(roomId)) {
+                rooms.set(roomId, { players: [ws], symbols: ['X'], permanent: true });
+                currentRoom = roomId;
+                playerSymbol = 'X';
+                ws.send(JSON.stringify({ type: 'roomCreated', roomId, symbol: 'X' }));
+            } else {
+                ws.send(JSON.stringify({ type: 'error', message: 'Комната с таким кодом уже существует' }));
+            }
+        }
+
+        if (data.type === 'joinPermanent' || data.type === 'join') {
             const room = rooms.get(data.roomId);
             if (room && room.players.length < 2) {
                 room.players.push(ws);
@@ -27,30 +40,30 @@ server.on('connection', (ws) => {
                 playerSymbol = 'O';
                 ws.send(JSON.stringify({ type: 'joined', symbol: 'O' }));
                 room.players[0].send(JSON.stringify({ type: 'opponentJoined' }));
+            } else if (room && room.players.length >= 2) {
+                ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
             } else {
-                ws.send(JSON.stringify({ type: 'error', message: 'Комната не найдена или заполнена' }));
+                ws.send(JSON.stringify({ type: 'error', message: 'Комната не найдена' }));
             }
         }
 
         if (data.type === 'move' || data.type === 'fixFigure') {
             const room = rooms.get(currentRoom);
             if (room) {
-                room.players.forEach((player, i) => {
-                    if (player !== ws) {
-                        player.send(JSON.stringify(data));
-                    }
+                room.players.forEach((player) => {
+                    if (player !== ws) player.send(JSON.stringify(data));
                 });
             }
         }
 
-        if (data.type === 'playAgain') {
+        if (data.type === 'leave') {
             const room = rooms.get(currentRoom);
             if (room) {
-                room.players.forEach((player, i) => {
-                    if (player !== ws) {
-                        player.send(JSON.stringify({ type: 'playAgain' }));
-                    }
-                });
+                const otherPlayer = room.players.find(p => p !== ws);
+                if (otherPlayer) otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
+                if (!room.permanent) {
+                    rooms.delete(currentRoom);
+                }
             }
         }
     });
@@ -60,13 +73,11 @@ server.on('connection', (ws) => {
             const room = rooms.get(currentRoom);
             if (room) {
                 const otherPlayer = room.players.find(p => p !== ws);
-                if (otherPlayer) {
-                    otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
-                }
-                rooms.delete(currentRoom);
+                if (otherPlayer) otherPlayer.send(JSON.stringify({ type: 'opponentLeft' }));
+                if (!room.permanent) rooms.delete(currentRoom);
             }
         }
     });
 });
 
-console.log('Server running on port ' + (process.env.PORT || 8080));
+console.log('Server running');
