@@ -14,17 +14,19 @@ server.on('connection', (ws) => {
         try { data = JSON.parse(msg); } catch(e) { return; }
 
         if (data.type === 'findRandom') {
-            if (waitingPlayers.length > 0) {
+                       if (waitingPlayers.length > 0) {
                 const opponent = waitingPlayers.shift();
                 const roomId = generateId();
                 rooms.set(roomId, { players: [opponent.ws, ws], symbols: ['X', 'O'] });
+                
+                opponent.ws.currentRoom = roomId;
+                opponent.ws.playerSymbol = 'X';
                 currentRoom = roomId;
                 playerSymbol = 'O';
+                
                 clearTimeout(opponent.timer);
                 opponent.ws.send(JSON.stringify({ type: 'randomRoom', roomId, symbol: 'X' }));
                 ws.send(JSON.stringify({ type: 'randomRoom', roomId, symbol: 'O' }));
-                opponent.ws.currentRoom = roomId;
-                opponent.ws.playerSymbol = 'X';
             } else {
                 const timer = setTimeout(() => {
                     const idx = waitingPlayers.findIndex(p => p.ws === ws);
@@ -37,7 +39,6 @@ server.on('connection', (ws) => {
                 playerSymbol = 'X';
                 ws.send(JSON.stringify({ type: 'waiting', roomId, symbol: 'X' }));
             }
-        }
 
         if (data.type === 'friendConnect') {
             const roomKey = data.roomName + ':' + data.password;
