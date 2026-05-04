@@ -11,7 +11,6 @@ server.on('connection', (ws) => {
         try { data = JSON.parse(msg); } catch(e) { return; }
 
         if (data.type === 'findRandom') {
-            // Ищем свободную комнату, где ждут соперника
             let foundRoom = null;
             for (const [roomId, room] of rooms) {
                 if (room.players.length === 1 && !room.permanent) {
@@ -21,8 +20,8 @@ server.on('connection', (ws) => {
             }
             
             if (foundRoom) {
-                // Подключаемся к существующей комнате
                 const room = rooms.get(foundRoom);
+                clearTimeout(room.timeout);
                 room.players.push(ws);
                 room.symbols.push('O');
                 currentRoom = foundRoom;
@@ -30,9 +29,15 @@ server.on('connection', (ws) => {
                 ws.send(JSON.stringify({ type: 'randomRoom', roomId: foundRoom, symbol: 'O' }));
                 room.players[0].send(JSON.stringify({ type: 'opponentJoined' }));
             } else {
-                // Создаём новую комнату и ждём
                 const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-                rooms.set(roomId, { players: [ws], symbols: ['X'] });
+                const timeout = setTimeout(() => {
+                    const room = rooms.get(roomId);
+                    if (room && room.players.length === 1) {
+                        rooms.delete(roomId);
+                        room.players[0].send(JSON.stringify({ type: 'error', message: 'Соперник не найден' }));
+                    }
+                }, 15000);
+                rooms.set(roomId, { players: [ws], symbols: ['X'], timeout: timeout });
                 currentRoom = roomId;
                 playerSymbol = 'X';
                 ws.send(JSON.stringify({ type: 'waiting', roomId, symbol: 'X' }));
@@ -59,16 +64,7 @@ server.on('connection', (ws) => {
                 ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
             }
         }
-if (data.type === 'newGame') {
-    const room = rooms.get(currentRoom);
-    if (room) {
-        room.players.forEach((player) => {
-            if (player !== ws && player.readyState === WebSocket.OPEN) {
-                player.send(JSON.stringify({ type: 'newGame' }));
-            }
-        });
-    }
-}
+
         if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout') {
             const room = rooms.get(currentRoom);
             if (room) {
