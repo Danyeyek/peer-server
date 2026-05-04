@@ -60,7 +60,7 @@ server.on('connection', (ws) => {
                 ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
             }
         }
-
+        console.log('Получено сообщение:', data.type, 'currentRoom:', currentRoom);
         if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout') {
             const room = rooms.get(currentRoom);
             if (room) {
