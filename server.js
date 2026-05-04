@@ -59,7 +59,16 @@ server.on('connection', (ws) => {
                 ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
             }
         }
-
+if (data.type === 'newGame') {
+    const room = rooms.get(currentRoom);
+    if (room) {
+        room.players.forEach((player) => {
+            if (player !== ws && player.readyState === WebSocket.OPEN) {
+                player.send(JSON.stringify({ type: 'newGame' }));
+            }
+        });
+    }
+}
         if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout') {
             const room = rooms.get(currentRoom);
             if (room) {
