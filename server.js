@@ -14,7 +14,7 @@ server.on('connection', (ws) => {
         try { data = JSON.parse(msg); } catch(e) { return; }
 
         if (data.type === 'findRandom') {
-                       if (waitingPlayers.length > 0) {
+            if (waitingPlayers.length > 0) {
                 const opponent = waitingPlayers.shift();
                 const roomId = generateId();
                 rooms.set(roomId, { players: [opponent.ws, ws], symbols: ['X', 'O'] });
@@ -39,6 +39,7 @@ server.on('connection', (ws) => {
                 playerSymbol = 'X';
                 ws.send(JSON.stringify({ type: 'waiting', roomId, symbol: 'X' }));
             }
+        }
 
         if (data.type === 'friendConnect') {
             const roomKey = data.roomName + ':' + data.password;
@@ -60,7 +61,9 @@ server.on('connection', (ws) => {
                 ws.send(JSON.stringify({ type: 'error', message: 'Комната заполнена' }));
             }
         }
+
         console.log('Получено сообщение:', data.type, 'currentRoom:', currentRoom);
+
         if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout') {
             const room = rooms.get(currentRoom);
             if (room) {
