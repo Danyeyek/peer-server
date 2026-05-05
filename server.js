@@ -10,39 +10,39 @@ server.on('connection', (ws) => {
         let data;
         try { data = JSON.parse(msg); } catch(e) { return; }
 
-        if (data.type === 'findRandom') {
-            let foundRoom = null;
-            for (const [roomId, room] of rooms) {
-                if (room.players.length === 1 && !room.permanent) {
-                    foundRoom = roomId;
-                    break;
-                }
-            }
-            
-            if (foundRoom) {
-                const room = rooms.get(foundRoom);
-                clearTimeout(room.timeout);
-                room.players.push(ws);
-                room.symbols.push('O');
-                currentRoom = foundRoom;
-                playerSymbol = 'O';
-                ws.send(JSON.stringify({ type: 'randomRoom', roomId: foundRoom, symbol: 'O' }));
-                room.players[0].send(JSON.stringify({ type: 'opponentJoined' }));
-            } else {
-                const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-                const timeout = setTimeout(() => {
-                    const room = rooms.get(roomId);
-                    if (room && room.players.length === 1) {
-                        rooms.delete(roomId);
-                        room.players[0].send(JSON.stringify({ type: 'error', message: 'Соперник не найден' }));
-                    }
-                }, 15000);
-                rooms.set(roomId, { players: [ws], symbols: ['X'], timeout: timeout });
-                currentRoom = roomId;
-                playerSymbol = 'X';
-                ws.send(JSON.stringify({ type: 'waiting', roomId, symbol: 'X' }));
-            }
+       if (data.type === 'findRandom') {
+    let foundRoom = null;
+    for (const [roomId, room] of rooms) {
+        if (room.players.length === 1 && !room.permanent) {
+            foundRoom = roomId;
+            break;
         }
+    }
+    
+    if (foundRoom) {
+        const room = rooms.get(foundRoom);
+        clearTimeout(room.timeout);
+        room.players.push(ws);
+        room.symbols.push('O');
+        currentRoom = foundRoom;
+        playerSymbol = 'O';
+        ws.send(JSON.stringify({ type: 'randomRoom', roomId: foundRoom, symbol: 'O' }));
+        room.players[0].send(JSON.stringify({ type: 'opponentJoined' }));
+    } else {
+        const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
+        const timeout = setTimeout(() => {
+            const room = rooms.get(roomId);
+            if (room && room.players.length === 1) {
+                rooms.delete(roomId);
+                room.players[0].send(JSON.stringify({ type: 'error', message: 'Соперник не найден' }));
+            }
+        }, 15000);
+        rooms.set(roomId, { players: [ws], symbols: ['X'], timeout: timeout });
+        currentRoom = roomId;
+        playerSymbol = 'X';
+        ws.send(JSON.stringify({ type: 'waiting', roomId, symbol: 'X' }));
+    }
+}
 
         if (data.type === 'friendConnect') {
             const roomKey = data.roomName + ':' + data.password;
