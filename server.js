@@ -65,7 +65,7 @@ server.on('connection', (ws) => {
             }
         }
 
-        if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout' || data.type === 'playAgain') {
+        if (data.type === 'move' || data.type === 'fixFigure' || data.type === 'timeout' || data.type === 'playAgain' || data.type === 'friendInvite' || data.type === 'friendGameSetup') {
             const room = rooms.get(currentRoom);
             if (room) {
                 room.players.forEach((player) => {
